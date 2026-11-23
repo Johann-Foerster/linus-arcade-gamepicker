@@ -4,15 +4,24 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag to release
+        required: true
+        type: string
 
 jobs:
   release:
     runs-on: windows-2022
     permissions:
       contents: write
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
           persist-credentials: false
 
       - name: Build and test the Windows applications
@@ -27,4 +36,4 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$env:GITHUB_REF_NAME" LinusArcade.zip --verify-tag --title "Linus Arcade $env:GITHUB_REF_NAME" --generate-notes
+        run: gh release create "$env:RELEASE_TAG" LinusArcade.zip --verify-tag --title "Linus Arcade $env:RELEASE_TAG" --generate-notes
