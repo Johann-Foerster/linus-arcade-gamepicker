@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -7,6 +8,37 @@ using System.Threading;
 using System.Windows.Forms;
 
 namespace Arcade {
+    class GameExit {
+        const double HoldSeconds = 5;
+        const double CloseGraceSeconds = 3;
+        double? heldSince;
+        double? forceCloseAt;
+        bool closeRequested;
+
+        internal void Update(Process game, bool buttonsHeld, double now) {
+            if (!buttonsHeld) {
+                heldSince = null;
+                closeRequested = false;
+            }
+            if (forceCloseAt.HasValue) {
+                if (now >= forceCloseAt.Value) {
+                    forceCloseAt = null;
+                    game.Kill();
+                }
+                return;
+            }
+            if (!buttonsHeld || closeRequested) return;
+            if (!heldSince.HasValue) heldSince = now;
+            if (now - heldSince.Value < HoldSeconds) return;
+
+            closeRequested = true;
+            if (game.CloseMainWindow())
+                forceCloseAt = now + CloseGraceSeconds;
+            else
+                game.Kill();
+        }
+    }
+
     class Picker : Form {
         readonly Maze maze=new Maze();
         Library library=new Library();
@@ -17,6 +49,7 @@ namespace Arcade {
         int failedGate=-1;
         int keyDirection;
         Process game;
+        GameExit gameExit;
         bool exiting;
         static readonly Color Ink=Color.FromArgb(10,23,27), Paper=Color.FromArgb(245,241,219),
             Muted=Color.FromArgb(159,188,180), Lime=Color.FromArgb(213,250,105);
@@ -75,8 +108,13 @@ namespace Arcade {
         void Frame() {
             double now=Now, dt=Math.Min(.05,now-last); last=now;
             if(game!=null) {
-                if(!game.HasExited) return;
-                game.Dispose(); game=null; maze.Respawn(); TopMost=true; Activate(); Native.SetForegroundWindow(Handle);
+                if(!game.HasExited) {
+                    try { gameExit.Update(game, Native.ExitButtonsHeld(library.GameExitButtons), now); }
+                    catch(Win32Exception ex) { if(!game.HasExited) LogError(ex); }
+                    catch(InvalidOperationException ex) { if(!game.HasExited) LogError(ex); }
+                    return;
+                }
+                game.Dispose(); game=null; gameExit=null; maze.Respawn(); TopMost=true; Activate(); Native.SetForegroundWindow(Handle);
             } else {
                 int input=Native.Stick();
                 int gate=maze.Tick(dt,input==0?keyDirection:input);
@@ -85,6 +123,7 @@ namespace Arcade {
                     try {
                         TopMost=false;
                         game=Library.Start(library.Exits[gate]);
+                        gameExit=new GameExit();
                     } catch(Exception ex) { TopMost=true; failedGate=gate; flashUntil=Now+1.5; LogError(ex); }
                 }
             }

@@ -9,10 +9,16 @@ A fullscreen Windows cabinet picker with an original pellet maze, three ghosts, 
 1. Run `build.cmd` on Windows 11 to create the two executables in `bin`, or extract the prebuilt cabinet ZIP. The build uses the .NET Framework compiler included with Windows. Place both executables in a permanent local folder such as `C:\Arcade`.
 2. Sign into the Windows account used for cabinet autologin. Open `ArcadeSetup.exe` with a keyboard and mouse. Configure each exit with an application, optional arguments, working folder and thumbnail. Numbered setup tabs correspond to the four physical exit positions. The title is a setup reference. Game selection uses artwork alone.
 3. Use an EXE or a normal Windows shortcut to an EXE. The picker keeps the shortcut's arguments and working folder. The setup arguments are appended. An explicit setup folder overrides the shortcut's folder. Quote individual paths containing spaces in the arguments field. For an emulator, select the emulator executable and supply the ROM path and fullscreen option as arguments.
-4. Click **Save games** and start `ArcadePicker.exe`. Use the game or emulator's own fullscreen and controller-exit settings. The picker stays open underneath the game and resumes when the launched process exits, including an abnormal exit. Select the long-running game executable for launchers that hand off to another process.
+4. Click **Save games** and start `ArcadePicker.exe`. Use the game or emulator's own fullscreen settings. The picker stays open underneath the game and resumes when the launched process exits, including an abnormal exit. Select the long-running game executable for launchers that hand off to another process.
 5. Test both controllers, all four launches and game exits. **Alt+F4** on the picker opens the desktop for maintenance. Start the picker again after editing its setup.
 
 Settings are stored in `%LOCALAPPDATA%\Linus Arcade\games.xml` for the cabinet user. Thumbnails and games are referenced at their original paths. A failed launch flashes the exit and returns the player to the center. The latest launch or library error is recorded in `last-error.txt` beside the settings.
+
+## Exit a game with the controllers
+
+1. Connect both controllers and open **Controllers** in `ArcadeSetup.exe`.
+2. Click **Learn exit buttons**. Within 10 seconds, hold **Start** and **Select** (also labeled **Back** on some controllers) on both controllers until Setup confirms that it detected them. Click **Save games** and restart the picker. Repeat this setup if Windows changes the controllers' joystick IDs.
+3. While a game is running, hold all four buttons at the same time for **5 continuous seconds**. Releasing any of them resets the countdown. The picker asks the game to close and returns to the maze when it exits. If the process has no closable main window or is still running after 3 seconds, the picker terminates it. A forced exit can lose unsaved progress.
 
 ## Start at sign-in on Windows 11 Pro
 

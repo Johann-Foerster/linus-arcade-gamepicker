@@ -9,6 +9,9 @@ namespace Arcade {
         readonly Library library;
         readonly TabControl tabs=new TabControl { Dock=DockStyle.Fill, Padding=new Point(16,8) };
         readonly Label status=new Label { AutoSize=true, Anchor=AnchorStyles.Left };
+        readonly Label captureStatus=new Label { AutoSize=true };
+        readonly Timer captureTimer=new Timer { Interval=50 };
+        readonly Stopwatch captureClock=new Stopwatch();
         readonly PictureBox[] previews=new PictureBox[4];
         [STAThread] static void Main() {
             Native.SetProcessDPIAware(); Application.EnableVisualStyles();
@@ -24,10 +27,53 @@ namespace Arcade {
             root.Controls.Add(new Label { Text="Game exits", Font=new Font(Font.FontFamily,22,FontStyle.Bold),AutoSize=true,Margin=new Padding(0,0,0,14) },0,0);
             root.Controls.Add(tabs,0,1);
             for(int i=0;i<4;i++) AddPage(i);
+            AddControllerPage();
+            captureTimer.Tick+=(s,e)=>CaptureExitButtons();
+            Disposed+=(s,e)=>captureTimer.Dispose();
             var footer=new FlowLayoutPanel { AutoSize=true,Dock=DockStyle.Fill,FlowDirection=FlowDirection.RightToLeft,Padding=new Padding(0,10,0,0) };
             var save=new Button { Text="Save games",AutoSize=true };
             save.Click+=(s,e)=>SaveGames(); footer.Controls.Add(save); footer.Controls.Add(status);
             root.Controls.Add(footer,0,2); Controls.Add(root);
+        }
+        void AddControllerPage() {
+            var page=new TabPage("Controllers") { Padding=new Padding(12),AutoScroll=true };
+            tabs.TabPages.Add(page);
+            var controls=new FlowLayoutPanel { Dock=DockStyle.Fill,FlowDirection=FlowDirection.TopDown,WrapContents=false };
+            controls.Controls.Add(new Label {
+                Text="Click Learn exit buttons, then hold Start and Select on both controllers.",
+                AutoSize=true
+            });
+            var learn=new Button { Text="Learn exit buttons",AutoSize=true };
+            learn.Click+=(s,e)=>{
+                captureStatus.Text="Press all four buttons within 10 seconds.";
+                captureClock.Restart();
+                captureTimer.Start();
+            };
+            controls.Controls.Add(learn);
+            captureStatus.Text=library.GameExitButtons!=null && library.GameExitButtons.Length==2
+                ? "Exit buttons configured." : "Exit buttons have not been configured.";
+            controls.Controls.Add(captureStatus);
+            page.Controls.Add(controls);
+        }
+        void CaptureExitButtons() {
+            if (captureClock.Elapsed.TotalSeconds >= 10) {
+                captureTimer.Stop();
+                captureStatus.Text="No button combination detected. Click Learn exit buttons to retry.";
+                return;
+            }
+            var bindings = new ControllerExitButtons[2];
+            int count = 0;
+            for (uint id = 0; id < Native.JoystickSlots; id++) {
+                uint buttons = Native.ReadButtons(id);
+                if (buttons == 0) continue;
+                if (count == bindings.Length || !ControllerExitButtons.IsButtonPair(buttons)) return;
+                bindings[count++] = new ControllerExitButtons { JoystickId = id, Buttons = buttons };
+            }
+            if (count != bindings.Length) return;
+            captureTimer.Stop();
+            library.GameExitButtons = bindings;
+            captureStatus.Text="Exit buttons learned. Click Save games to apply after restarting the picker.";
+            status.Text="Unsaved changes";
         }
         void AddPage(int i) {
             var exit=library.Exits[i];

@@ -9,9 +9,20 @@ namespace Arcade {
     public class Exit {
         public string Title = "", Image = "", Target = "", Arguments = "", Folder = "";
     }
+    public class ControllerExitButtons {
+        public uint JoystickId;
+        public uint Buttons;
+
+        internal static bool IsButtonPair(uint buttons) {
+            if (buttons == 0) return false;
+            uint remaining = buttons & (buttons - 1);
+            return remaining != 0 && (remaining & (remaining - 1)) == 0;
+        }
+    }
     public class Library {
         public static readonly string[] Positions = { "Upper left", "Upper right", "Lower left", "Lower right" };
         public Exit[] Exits = { new Exit(), new Exit(), new Exit(), new Exit() };
+        public ControllerExitButtons[] GameExitButtons = new ControllerExitButtons[0];
         public static readonly string FileName = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Linus Arcade", "games.xml");
         public static Library Read() {
             if (!File.Exists(FileName)) return new Library();
@@ -73,16 +84,31 @@ namespace Arcade {
         }
         [DllImport("winmm.dll")] static extern uint joyGetPosEx(uint id, ref Joystick state);
         [DllImport("winmm.dll", CharSet=CharSet.Unicode)] static extern uint joyGetDevCaps(UIntPtr id,out JoyCaps caps,uint size);
-        static readonly JoyCaps[] ranges = new JoyCaps[16];
-        static readonly bool[] connected = new bool[16];
-        static readonly int[] previous = new int[16];
+        internal const int JoystickSlots = 16;
+        static readonly JoyCaps[] ranges = new JoyCaps[JoystickSlots];
+        static readonly bool[] connected = new bool[JoystickSlots];
+        static readonly int[] previous = new int[JoystickSlots];
         static int active;
         static int nextScan;
+        internal static uint ReadButtons(uint id) {
+            const uint returnButtons = 0x80;
+            var state = new Joystick { size = 52, flags = returnButtons };
+            return joyGetPosEx(id, ref state) == 0 ? state.buttons : 0;
+        }
+        internal static bool ExitButtonsHeld(ControllerExitButtons[] bindings) {
+            if (bindings == null || bindings.Length != 2 || bindings[0] == null || bindings[1] == null ||
+                bindings[0].JoystickId == bindings[1].JoystickId) return false;
+            foreach (var binding in bindings) {
+                if (binding.JoystickId >= ranges.Length || !ControllerExitButtons.IsButtonPair(binding.Buttons) ||
+                    (ReadButtons(binding.JoystickId) & binding.Buttons) != binding.Buttons) return false;
+            }
+            return true;
+        }
         internal static int Stick() {
             int first = 0, now = Environment.TickCount;
             bool scan=nextScan==0 || unchecked(now-nextScan)>=0;
             if(scan) nextScan=unchecked(now+1000);
-            for (uint id=0; id<16; id++) {
+            for (uint id=0; id<JoystickSlots; id++) {
                 if (!connected[id] && !scan) continue;
                 var s = new Joystick { size=52, flags=0xff };
                 if (joyGetPosEx(id, ref s)!=0) { connected[id]=false; previous[id]=0; continue; }

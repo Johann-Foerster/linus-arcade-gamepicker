@@ -9,6 +9,27 @@ using System.Xml.Serialization;
 namespace Arcade {
     class Checks {
         static void Check(bool ok,string message) { if(!ok) throw new Exception(message); }
+        static void CheckGameExit(string command) {
+            var start = new ProcessStartInfo(command, "/d /c set /p exitCheck=") {
+                UseShellExecute = false, CreateNoWindow = true, RedirectStandardInput = true
+            };
+            using (var game = Process.Start(start)) {
+                try {
+                    var gameExit = new GameExit();
+                    gameExit.Update(game, true, 0);
+                    gameExit.Update(game, true, 4.9);
+                    Check(!game.HasExited, "Game exited before five seconds");
+                    gameExit.Update(game, false, 4.95);
+                    gameExit.Update(game, true, 5);
+                    gameExit.Update(game, true, 9.9);
+                    Check(!game.HasExited, "Releasing a button did not reset the hold");
+                    gameExit.Update(game, true, 10);
+                    Check(game.WaitForExit(5000), "Controller exit did not terminate the windowless game");
+                } finally {
+                    game.StandardInput.Close();
+                }
+            }
+        }
         [STAThread] public static void Main() {
             var maze=new Maze();
             var seen=new HashSet<Point>(); var queue=new Queue<Point>(); queue.Enqueue(maze.Player.Cell);
@@ -34,6 +55,7 @@ namespace Arcade {
             string shortcut=Path.Combine(dir,"test game.lnk");
             try {
                 string command=Path.Combine(Environment.SystemDirectory,"cmd.exe");
+                CheckGameExit(command);
                 var direct=new Exit { Target=command, Arguments="/d /c exit 7", Folder=dir };
                 using(var proc=Library.Start(direct)) { Check(proc.WaitForExit(5000) && proc.ExitCode==7,"Direct launch failed"); }
                 dynamic shell=Activator.CreateInstance(Type.GetTypeFromProgID("WScript.Shell"));
@@ -47,7 +69,7 @@ namespace Arcade {
                 }
                 using(var setup=new Setup(new Library())) { setup.PerformLayout(); }
                 Native.Stick();
-                Console.WriteLine("Passed maze connectivity, four exit triggers, repeated respawns, executable and shortcut launches, rendering, setup construction and input polling.");
+                Console.WriteLine("Passed maze connectivity, four exit triggers, repeated respawns, executable and shortcut launches, controller exit timing, rendering, setup construction and input polling.");
             } finally { File.Delete(shortcut); Directory.Delete(dir); }
         }
     }
