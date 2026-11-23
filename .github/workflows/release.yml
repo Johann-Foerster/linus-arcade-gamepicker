@@ -1,0 +1,30 @@
+name: Windows release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: windows-2022
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Build and test the Windows applications
+        shell: cmd
+        run: call tests\check.cmd
+
+      - name: Package cabinet files
+        shell: pwsh
+        run: Compress-Archive -LiteralPath bin/ArcadePicker.exe, bin/ArcadeSetup.exe, README.md, LICENSE -DestinationPath LinusArcade.zip
+
+      - name: Publish release with the cabinet ZIP
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$env:GITHUB_REF_NAME" LinusArcade.zip --verify-tag --title "Linus Arcade $env:GITHUB_REF_NAME" --generate-notes
