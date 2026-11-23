@@ -25,8 +25,8 @@ namespace Arcade {
         public Runner Player;
         public Runner[] Ghosts;
         public readonly HashSet<Point> Pellets = new HashSet<Point>();
+        internal MazeCue LastCue { get; private set; }
 
-        public double Shield;
         readonly Random random = new Random();
         int queued;
         bool moving;
@@ -37,8 +37,11 @@ namespace Arcade {
         }
         public void Respawn() {
             Player = new Runner(Home);
-            Ghosts = new [] {new Runner(new Point(3,3)),new Runner(new Point(19,11)),new Runner(new Point(11,1))};
-            Shield=2.5; queued=0; moving=false;
+            Ghosts = new [] {
+                new Runner(new Point(3,3)), new Runner(new Point(19,11)), new Runner(new Point(11,1)),
+                new Runner(new Point(5,9)), new Runner(new Point(17,5))
+            };
+            queued=0; moving=false;
         }
         void Refill() {
             for(int y=1;y<Height-1;y++) for(int x=0;x<Width;x++) {
@@ -66,29 +69,34 @@ namespace Arcade {
             for(int d=1;d<=4;d++) if(Can(ghost.Cell,d) && Array.IndexOf(Gates,Step(ghost.Cell,d))<0) options.Add(d);
             if(options.Count>1) options.Remove(back);
             if(options.Count==0) return 0;
-            if(random.Next(4)<=index) return options[random.Next(options.Count)];
+            if(random.Next(4)<=Math.Min(index,2)) return options[random.Next(options.Count)];
             int best=options[random.Next(options.Count)];
             foreach(int d in options) if(Distance(Step(ghost.Cell,d),Player.Cell)<Distance(Step(ghost.Cell,best),Player.Cell)) best=d;
             return best;
         }
         static int Distance(Point a,Point b) { return Math.Abs(a.X-b.X)+Math.Abs(a.Y-b.Y); }
         public int Tick(double dt,int direction) {
+            LastCue=MazeCue.None;
             if(direction!=0) { queued=direction; moving=true; }
             if(!moving) return -1;
-            Shield=Math.Max(0,Shield-dt);
             Advance(Player,dt*5.25,delegate {
                 if(Can(Player.Cell,queued)) { int d=queued; queued=0; return d; }
                 return Player.Direction;
             });
-            Pellets.Remove(Player.Cell);
-            if(Pellets.Count==0) Refill();
+            if(Pellets.Remove(Player.Cell)) LastCue=MazeCue.Pellet;
+            if(Pellets.Count==0) {
+                Refill();
+                LastCue=MazeCue.Cleared;
+            }
             int gate=Array.IndexOf(Gates,Player.Cell);
             if(gate>=0) return gate;
             for(int i=0;i<Ghosts.Length;i++) {
                 Runner ghost=Ghosts[i];
                 Advance(ghost,dt*(2.6+i*.22),()=>GhostTurn(ghost,i));
-                if(Shield==0 && Math.Abs(Player.X-ghost.X)<.62 && Math.Abs(Player.Y-ghost.Y)<.62) {
-                    Respawn(); break;
+                if(Math.Abs(Player.X-ghost.X)<.62 && Math.Abs(Player.Y-ghost.Y)<.62) {
+                    Respawn();
+                    LastCue=MazeCue.Caught;
+                    break;
                 }
             }
             return -1;

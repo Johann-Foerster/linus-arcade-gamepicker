@@ -1,6 +1,6 @@
 # Linus Arcade
 
-A fullscreen Windows cabinet picker with an original pellet maze, three ghosts, infinite lives and four picture exits. The maze fills the height of a 1920 × 1080 primary display. Either arcade stick or D-pad controls the same player. Arrow keys also work during setup. The player keeps moving until a wall, and you can queue the next turn before a junction.
+A fullscreen Windows cabinet picker with an original pellet maze, five ghosts and four picture exits. Getting caught sends the player back to the center. The maze fills the height of a 1920 × 1080 primary display. Either arcade stick or D-pad controls the same player. Arrow keys also work during setup. The player keeps moving until a wall, and you can queue the next turn before a junction.
 
 ## Install the games
 

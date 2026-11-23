@@ -39,6 +39,19 @@ namespace Arcade {
             }
             foreach(var p in Maze.Gates) Check(seen.Contains(p),"Unreachable exit");
             foreach(var p in maze.Pellets) Check(seen.Contains(p),"Unreachable pellet");
+            var ghostSpawns=new HashSet<Point>();
+            Check(maze.Ghosts.Length==5,"Expected five ghosts");
+            foreach(var ghost in maze.Ghosts)
+                Check(seen.Contains(ghost.Cell) && ghostSpawns.Add(ghost.Cell),"Invalid or duplicate ghost spawn");
+            maze.Tick(.2,1);
+            Check(maze.LastCue==MazeCue.Pellet,"Missing pellet cue");
+            maze.Tick(0,0);
+            Check(maze.LastCue==MazeCue.None,"Pellet cue repeated");
+            maze.Respawn();
+            maze.Pellets.Clear();
+            maze.Pellets.Add(new Point(11,6));
+            maze.Tick(.2,1);
+            Check(maze.LastCue==MazeCue.Cleared && maze.Pellets.Count>1,"Missing maze clear cue");
             for(int i=0;i<4;i++) {
                 var gate=Maze.Gates[i];
                 maze.Respawn(); maze.Player=new Runner(new Point(i%2==0?1:21,gate.Y));
@@ -47,8 +60,10 @@ namespace Arcade {
                 Check(result==i,"Wrong gate trigger");
             }
             for(int life=0;life<10;life++) {
-                maze.Shield=0; maze.Player=new Runner(new Point(3,3)); maze.Ghosts[0]=new Runner(maze.Player.Cell);
-                maze.Tick(.016,1); Check(maze.Player.Cell==new Point(11,7) && maze.Shield>0,"Respawn failed");
+                maze.Respawn();
+                maze.Ghosts[life%maze.Ghosts.Length]=new Runner(maze.Player.Cell);
+                maze.Tick(.016,1); Check(maze.Player.Cell==new Point(11,7) && maze.Player.Progress==0,"Respawn failed");
+                Check(maze.LastCue==MazeCue.Caught,"Missing ghost collision cue");
             }
             string dir=Path.Combine(Path.GetTempPath(),"Arcade checks "+Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(dir);

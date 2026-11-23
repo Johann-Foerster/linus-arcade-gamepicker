@@ -41,6 +41,7 @@ namespace Arcade {
 
     class Picker : Form {
         readonly Maze maze=new Maze();
+        readonly MazeSounds sounds=new MazeSounds();
         Library library=new Library();
         readonly Image[] covers=new Image[4];
         readonly System.Windows.Forms.Timer timer=new System.Windows.Forms.Timer { Interval=16 };
@@ -52,8 +53,9 @@ namespace Arcade {
         GameExit gameExit;
         bool exiting;
         static readonly Color Ink=Color.FromArgb(10,23,27), Paper=Color.FromArgb(245,241,219),
-            Muted=Color.FromArgb(159,188,180), Lime=Color.FromArgb(213,250,105);
-        static readonly Color[] Accents={Color.FromArgb(106,226,198),Color.FromArgb(251,165,116),Color.FromArgb(184,169,248),Color.FromArgb(240,208,91)};
+            Muted=Color.FromArgb(159,188,180);
+        static readonly Color[] GateAccents={Color.FromArgb(106,226,198),Color.FromArgb(251,165,116),Color.FromArgb(184,169,248),Color.FromArgb(240,208,91)};
+        static readonly Color[] GhostColors={GateAccents[0],GateAccents[1],GateAccents[2],Color.FromArgb(244,109,159),Color.FromArgb(110,174,255)};
         const int CellWidth=54, CellHeight=72, LeftEdge=(1920-Maze.Width*CellWidth)/2;
 
         [STAThread] static void Main() {
@@ -77,6 +79,7 @@ namespace Arcade {
             timer.Tick+=(s,e)=>Frame();
             KeyUp+=(s,e)=>{ if(Direction(e.KeyCode)==keyDirection) keyDirection=0; };
             Deactivate+=(s,e)=>keyDirection=0;
+            Disposed+=(s,e)=>sounds.Dispose();
             FormClosed+=(s,e)=>{
                 timer.Dispose(); Cursor.Show(); Native.SetThreadExecutionState(0x80000000);
                 foreach(var im in covers) if(im!=null) im.Dispose();
@@ -115,6 +118,7 @@ namespace Arcade {
                     return;
                 }
                 game.Dispose(); game=null; gameExit=null; maze.Respawn(); TopMost=true; Activate(); Native.SetForegroundWindow(Handle);
+                sounds.Play(MazeCue.Returned,now);
             } else {
                 int input=Native.Stick();
                 int gate=maze.Tick(dt,input==0?keyDirection:input);
@@ -125,7 +129,8 @@ namespace Arcade {
                         game=Library.Start(library.Exits[gate]);
                         gameExit=new GameExit();
                     } catch(Exception ex) { TopMost=true; failedGate=gate; flashUntil=Now+1.5; LogError(ex); }
-                }
+                    sounds.Play(game!=null?MazeCue.Launch:MazeCue.LaunchFailed,Now);
+                } else sounds.Play(maze.LastCue,now);
             }
             Invalidate();
         }
@@ -149,7 +154,7 @@ namespace Arcade {
             int x=right?1920-margin-width:margin;
             int centerY=Maze.Gates[i].Y*CellHeight+CellHeight/2;
             var area=new Rectangle(x,centerY-height/2,width,height);
-            Color accent=(i==failedGate && Now<flashUntil && (int)(Now*8)%2==0)?Color.White:Accents[i];
+            Color accent=(i==failedGate && Now<flashUntil && (int)(Now*8)%2==0)?Color.White:GateAccents[i];
             Box(g,accent,right?1920-LeftEdge:x+width,centerY-2,LeftEdge-margin-width,4);
             if(covers[i]!=null) {
                 var im=covers[i]; float factor=Math.Max((float)width/im.Width,(float)height/im.Height);
@@ -188,27 +193,22 @@ namespace Arcade {
             }
             for(int i=0;i<4;i++) {
                 Point p=Maze.Gates[i]; int px=LeftEdge+p.X*CellWidth+CellWidth/2,py=p.Y*CellHeight+CellHeight/2,sign=i%2==0?-1:1;
-                using(var pen=new Pen(Accents[i],5)) g.DrawLines(pen,new[]{new Point(px-sign*5,py-10),new Point(px+sign*6,py),new Point(px-sign*5,py+10)});
+                using(var pen=new Pen(GateAccents[i],5)) g.DrawLines(pen,new[]{new Point(px-sign*5,py-10),new Point(px+sign*6,py),new Point(px-sign*5,py+10)});
             }
-            for(int i=0;i<maze.Ghosts.Length;i++) Sprite(g,maze.Ghosts[i],Accents[i],false,i);
-            Sprite(g,maze.Player,Lime,true,0);
+            for(int i=0;i<maze.Ghosts.Length;i++) DrawGhost(g,maze.Ghosts[i],GhostColors[i],i);
+            var saved=g.Save();
+            g.TranslateTransform(LeftEdge+(maze.Player.X+.5f)*CellWidth,(maze.Player.Y+.5f)*CellHeight);
+            HeroSprite.Draw(g,maze.Player);
+            g.Restore(saved);
         }
-        void Sprite(Graphics g,Runner a,Color c,bool player,int index) {
+        void DrawGhost(Graphics g,Runner a,Color c,int index) {
             var saved=g.Save();
             g.TranslateTransform(LeftEdge+(a.X+.5f)*CellWidth,(a.Y+.5f)*CellHeight);
             g.ScaleTransform(1.22f,1.22f);
-            if(player) {
-                if(maze.Shield>0) using(var pen=new Pen(Color.FromArgb(125,Lime),2)) g.DrawEllipse(pen,-21,-21,42,42);
-                g.RotateTransform(a.Direction==0?0:(a.Direction-2)*90);
-                Box(g,c,-14,-12,21,24); Box(g,c,-8,-16,13,4); Box(g,c,5,-8,10,16);
-                Box(g,Ink,-5,-7,13,6); Box(g,Paper,3,-7,4,4);
-                Box(g,Paper,-17,-6,3,12);
-            } else {
-                g.TranslateTransform(0,(float)Math.Sin(Now*5+index)*2);
-                Box(g,c,-14,-8,28,18); Box(g,c,-9,-14,18,7);
-                Box(g,c,-14,10,7,5); Box(g,c,7,10,7,5);
-                Box(g,Ink,-10,-5,20,8); Box(g,Paper,-7,-3,4,4); Box(g,Paper,4,-3,4,4);
-            }
+            g.TranslateTransform(0,(float)Math.Sin(Now*5+index)*2);
+            Box(g,c,-14,-8,28,18); Box(g,c,-9,-14,18,7);
+            Box(g,c,-14,10,7,5); Box(g,c,7,10,7,5);
+            Box(g,Ink,-10,-5,20,8); Box(g,Paper,-7,-3,4,4); Box(g,Paper,4,-3,4,4);
             g.Restore(saved);
         }
     }
