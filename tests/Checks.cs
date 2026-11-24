@@ -55,6 +55,24 @@ namespace Arcade {
             clearMaze.Tick(0,0,10);
             Check(clearMaze.Pellets.Contains(first),"Pellet did not respawn while the player was idle");
         }
+        static void CheckShutdownHotkey() {
+            var hotkey = new ShutdownHotkey();
+            Check(!hotkey.Update(false, true, 0), "Shutdown triggered on initial press");
+            Check(!hotkey.Update(false, true, 2.9), "Shutdown triggered before three seconds");
+            Check(!hotkey.Update(false, false, 2.95), "Shutdown triggered on release");
+            Check(!hotkey.Update(false, true, 3), "Shutdown hold did not reset on release");
+            Check(hotkey.Update(false, true, 6), "Shutdown did not trigger after three seconds");
+            Check(!hotkey.Update(false, true, 7), "Shutdown triggered twice during one hold");
+            hotkey.Update(false, false, 8);
+
+            hotkey.Update(true, true, 9);
+            Check(!hotkey.Update(true, true, 12), "Shutdown triggered while a game was open");
+            Check(!hotkey.Update(false, true, 13), "Shutdown triggered on return to the picker");
+            Check(!hotkey.Update(false, true, 16), "A hold carried over from the game");
+            hotkey.Update(false, false, 17);
+            hotkey.Update(false, true, 18);
+            Check(hotkey.Update(false, true, 21), "Shutdown did not trigger after a fresh hold");
+        }
         [STAThread] public static void Main() {
             var maze=new Maze();
             var seen=new HashSet<Point>(); var queue=new Queue<Point>(); queue.Enqueue(maze.Player.Cell);
@@ -69,6 +87,7 @@ namespace Arcade {
             foreach(var ghost in maze.Ghosts)
                 Check(seen.Contains(ghost.Cell) && ghostSpawns.Add(ghost.Cell),"Invalid or duplicate ghost spawn");
             CheckPelletRespawns();
+            CheckShutdownHotkey();
             for(int i=0;i<4;i++) {
                 var gate=Maze.Gates[i];
                 maze.Respawn(); maze.Player=new Runner(new Point(i%2==0?1:21,gate.Y));
@@ -101,7 +120,7 @@ namespace Arcade {
                 }
                 using(var setup=new Setup(new Library())) { setup.PerformLayout(); }
                 Native.Stick();
-                Console.WriteLine("Passed maze connectivity, four exit triggers, player and pellet respawns, executable and shortcut launches, controller exit timing, rendering, setup construction and input polling.");
+                Console.WriteLine("Passed maze connectivity, four exit triggers, player and pellet respawns, executable and shortcut launches, controller exit and shutdown timing, rendering, setup construction and input polling.");
             } finally { File.Delete(shortcut); Directory.Delete(dir); }
         }
     }

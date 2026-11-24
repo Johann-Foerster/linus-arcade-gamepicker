@@ -39,6 +39,26 @@ namespace Arcade {
         }
     }
 
+    class ShutdownHotkey {
+        const double HoldSeconds = 3;
+        double? heldSince;
+        bool releaseRequired;
+
+        internal bool Update(bool gameOpen, bool buttonsHeld, double now) {
+            if (gameOpen || !buttonsHeld) {
+                heldSince = null;
+                releaseRequired = buttonsHeld;
+                return false;
+            }
+            if (releaseRequired) return false;
+            if (!heldSince.HasValue) heldSince = now;
+            if (now - heldSince.Value < HoldSeconds) return false;
+
+            releaseRequired = true;
+            return true;
+        }
+    }
+
     class Picker : Form {
         readonly Maze maze=new Maze();
         readonly MazeSounds sounds=new MazeSounds();
@@ -46,6 +66,7 @@ namespace Arcade {
         readonly Image[] covers=new Image[4];
         readonly System.Windows.Forms.Timer timer=new System.Windows.Forms.Timer { Interval=16 };
         readonly Stopwatch clock=Stopwatch.StartNew();
+        readonly ShutdownHotkey shutdownHotkey = new ShutdownHotkey();
         double last, flashUntil;
         int failedGate=-1;
         int keyDirection;
@@ -108,11 +129,26 @@ namespace Arcade {
             if(e.CloseReason==CloseReason.UserClosing && !exiting) e.Cancel=true;
             base.OnFormClosing(e);
         }
+        static void RequestShutdown() {
+            var start = new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "shutdown.exe"), "/s /t 0") {
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            try { using (Process.Start(start)) { } }
+            catch (Win32Exception ex) { LogError(ex); }
+            catch (InvalidOperationException ex) { LogError(ex); }
+        }
+
         void Frame() {
             double now=Now, dt=Math.Min(.05,now-last); last=now;
+            bool buttonsHeld = Native.ExitButtonsHeld(library.GameExitButtons);
+            if (shutdownHotkey.Update(game != null, buttonsHeld, now)) {
+                RequestShutdown();
+                return;
+            }
             if(game!=null) {
                 if(!game.HasExited) {
-                    try { gameExit.Update(game, Native.ExitButtonsHeld(library.GameExitButtons), now); }
+                    try { gameExit.Update(game, buttonsHeld, now); }
                     catch(Win32Exception ex) { if(!game.HasExited) LogError(ex); }
                     catch(InvalidOperationException ex) { if(!game.HasExited) LogError(ex); }
                     return;

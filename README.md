@@ -14,11 +14,12 @@ A fullscreen Windows cabinet picker with an original pellet maze, five ghosts an
 
 Settings are stored in `%LOCALAPPDATA%\Linus Arcade\games.xml` for the cabinet user. Thumbnails and games are referenced at their original paths. A failed launch flashes the exit and returns the player to the center. The latest launch or library error is recorded in `last-error.txt` beside the settings.
 
-## Exit a game with the controllers
+## Exit a game or shut down with the controllers
 
 1. Connect both controllers and open **Controllers** in `ArcadeSetup.exe`.
 2. Click **Learn exit buttons**. Within 10 seconds, hold **Start** and **Select** (also labeled **Back** on some controllers) on both controllers until Setup confirms that it detected them. Click **Save games** and restart the picker. Repeat this setup if Windows changes the controllers' joystick IDs.
 3. While a game is running, hold all four buttons at the same time for **2 continuous seconds**. Releasing any of them resets the countdown. The picker asks the game to close and returns to the maze when it exits. If the process has no closable main window or is still running after 3 seconds, the picker terminates it. A forced exit can lose unsaved progress.
+4. When no game is running, hold the same four buttons for **3 continuous seconds** to shut down Windows. If you used the buttons to exit a game, release at least one before starting the shutdown hold.
 
 ## Start at sign-in on Windows 11 Pro
 
