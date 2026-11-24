@@ -22,12 +22,14 @@ namespace Arcade {
         public static readonly Point[] Gates = {new Point(0,3),new Point(22,3),new Point(0,11),new Point(22,11)};
         static readonly Point[] Delta = {Point.Empty,new Point(0,-1),new Point(1,0),new Point(0,1),new Point(-1,0)};
         static readonly Point Home = new Point(11,7);
+        const double PelletRespawnSeconds = 10;
         public Runner Player;
         public Runner[] Ghosts;
         public readonly HashSet<Point> Pellets = new HashSet<Point>();
         internal MazeCue LastCue { get; private set; }
 
         readonly Random random = new Random();
+        readonly Queue<KeyValuePair<Point,double>> pelletRespawns = new Queue<KeyValuePair<Point,double>>();
         int queued;
         bool moving;
         public Maze() { Refill(); Respawn(); }
@@ -75,18 +77,23 @@ namespace Arcade {
             return best;
         }
         static int Distance(Point a,Point b) { return Math.Abs(a.X-b.X)+Math.Abs(a.Y-b.Y); }
-        public int Tick(double dt,int direction) {
+        public void RestorePellets(double now) {
+            while(pelletRespawns.Count>0 && pelletRespawns.Peek().Value<=now)
+                Pellets.Add(pelletRespawns.Dequeue().Key);
+        }
+        public int Tick(double dt,int direction,double now) {
             LastCue=MazeCue.None;
+            RestorePellets(now);
             if(direction!=0) { queued=direction; moving=true; }
             if(!moving) return -1;
+            Point previousCell=Player.Cell;
             Advance(Player,dt*5.25,delegate {
                 if(Can(Player.Cell,queued)) { int d=queued; queued=0; return d; }
                 return Player.Direction;
             });
-            if(Pellets.Remove(Player.Cell)) LastCue=MazeCue.Pellet;
-            if(Pellets.Count==0) {
-                Refill();
-                LastCue=MazeCue.Cleared;
+            if(Player.Cell!=previousCell && Pellets.Remove(Player.Cell)) {
+                pelletRespawns.Enqueue(new KeyValuePair<Point,double>(Player.Cell,now+PelletRespawnSeconds));
+                LastCue=Pellets.Count==0?MazeCue.Cleared:MazeCue.Pellet;
             }
             int gate=Array.IndexOf(Gates,Player.Cell);
             if(gate>=0) return gate;

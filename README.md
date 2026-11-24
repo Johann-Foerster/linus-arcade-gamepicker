@@ -1,6 +1,6 @@
 # Linus Arcade
 
-A fullscreen Windows cabinet picker with an original pellet maze, five ghosts and four picture exits. Getting caught sends the player back to the center. The maze fills the height of a 1920 × 1080 primary display. Either arcade stick or D-pad controls the same player. Arrow keys also work during setup. The player keeps moving until a wall, and you can queue the next turn before a junction.
+A fullscreen Windows cabinet picker with an original pellet maze, five ghosts and four picture exits. Each pellet reappears in the same spot 10 seconds after you collect it. Getting caught sends the player back to the center. The maze fills the height of a 1920 × 1080 primary display. Either arcade stick or D-pad controls the same player. Arrow keys also work during setup. The player keeps moving until a wall, and you can queue the next turn before a junction.
 
 ## Install the games
 
@@ -18,7 +18,7 @@ Settings are stored in `%LOCALAPPDATA%\Linus Arcade\games.xml` for the cabinet u
 
 1. Connect both controllers and open **Controllers** in `ArcadeSetup.exe`.
 2. Click **Learn exit buttons**. Within 10 seconds, hold **Start** and **Select** (also labeled **Back** on some controllers) on both controllers until Setup confirms that it detected them. Click **Save games** and restart the picker. Repeat this setup if Windows changes the controllers' joystick IDs.
-3. While a game is running, hold all four buttons at the same time for **5 continuous seconds**. Releasing any of them resets the countdown. The picker asks the game to close and returns to the maze when it exits. If the process has no closable main window or is still running after 3 seconds, the picker terminates it. A forced exit can lose unsaved progress.
+3. While a game is running, hold all four buttons at the same time for **2 continuous seconds**. Releasing any of them resets the countdown. The picker asks the game to close and returns to the maze when it exits. If the process has no closable main window or is still running after 3 seconds, the picker terminates it. A forced exit can lose unsaved progress.
 
 ## Start at sign-in on Windows 11 Pro
 

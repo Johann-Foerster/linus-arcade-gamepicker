@@ -17,18 +17,43 @@ namespace Arcade {
                 try {
                     var gameExit = new GameExit();
                     gameExit.Update(game, true, 0);
-                    gameExit.Update(game, true, 4.9);
-                    Check(!game.HasExited, "Game exited before five seconds");
-                    gameExit.Update(game, false, 4.95);
-                    gameExit.Update(game, true, 5);
-                    gameExit.Update(game, true, 9.9);
+                    gameExit.Update(game, true, 1.9);
+                    Check(!game.HasExited, "Game exited before two seconds");
+                    gameExit.Update(game, false, 1.95);
+                    gameExit.Update(game, true, 2);
+                    gameExit.Update(game, true, 3.9);
                     Check(!game.HasExited, "Releasing a button did not reset the hold");
-                    gameExit.Update(game, true, 10);
+                    gameExit.Update(game, true, 4);
                     Check(game.WaitForExit(5000), "Controller exit did not terminate the windowless game");
                 } finally {
                     game.StandardInput.Close();
                 }
             }
+        }
+        static void CheckPelletRespawns() {
+            var maze=new Maze();
+            maze.Ghosts=new Runner[0];
+            var first=new Point(11,6);
+            var second=new Point(11,5);
+            maze.Tick(.2,1,0);
+            Check(maze.LastCue==MazeCue.Pellet && !maze.Pellets.Contains(first),"First pellet was not collected");
+            maze.Tick(.2,0,1);
+            Check(!maze.Pellets.Contains(second),"Second pellet was not collected");
+            maze.Tick(0,0,9.99);
+            Check(maze.LastCue==MazeCue.None && !maze.Pellets.Contains(first),"First pellet respawned early");
+            maze.Tick(0,0,10);
+            Check(maze.Pellets.Contains(first) && !maze.Pellets.Contains(second),"Pellets did not respawn independently");
+            maze.Tick(0,0,11);
+            Check(maze.Pellets.Contains(second) && maze.LastCue==MazeCue.None,"Second pellet did not stay visible under the player");
+
+            var clearMaze=new Maze();
+            clearMaze.Pellets.Clear();
+            clearMaze.Pellets.Add(first);
+            clearMaze.Tick(.2,1,0);
+            Check(clearMaze.LastCue==MazeCue.Cleared && clearMaze.Pellets.Count==0,"Clearing the maze refilled pellets early or lost the clear cue");
+            clearMaze.Respawn();
+            clearMaze.Tick(0,0,10);
+            Check(clearMaze.Pellets.Contains(first),"Pellet did not respawn while the player was idle");
         }
         [STAThread] public static void Main() {
             var maze=new Maze();
@@ -43,26 +68,18 @@ namespace Arcade {
             Check(maze.Ghosts.Length==5,"Expected five ghosts");
             foreach(var ghost in maze.Ghosts)
                 Check(seen.Contains(ghost.Cell) && ghostSpawns.Add(ghost.Cell),"Invalid or duplicate ghost spawn");
-            maze.Tick(.2,1);
-            Check(maze.LastCue==MazeCue.Pellet,"Missing pellet cue");
-            maze.Tick(0,0);
-            Check(maze.LastCue==MazeCue.None,"Pellet cue repeated");
-            maze.Respawn();
-            maze.Pellets.Clear();
-            maze.Pellets.Add(new Point(11,6));
-            maze.Tick(.2,1);
-            Check(maze.LastCue==MazeCue.Cleared && maze.Pellets.Count>1,"Missing maze clear cue");
+            CheckPelletRespawns();
             for(int i=0;i<4;i++) {
                 var gate=Maze.Gates[i];
                 maze.Respawn(); maze.Player=new Runner(new Point(i%2==0?1:21,gate.Y));
                 int result=-1;
-                for(int n=0;n<40 && result<0;n++) result=maze.Tick(.016,i%2==0?4:2);
+                for(int n=0;n<40 && result<0;n++) result=maze.Tick(.016,i%2==0?4:2,i+n*.016);
                 Check(result==i,"Wrong gate trigger");
             }
             for(int life=0;life<10;life++) {
                 maze.Respawn();
                 maze.Ghosts[life%maze.Ghosts.Length]=new Runner(maze.Player.Cell);
-                maze.Tick(.016,1); Check(maze.Player.Cell==new Point(11,7) && maze.Player.Progress==0,"Respawn failed");
+                maze.Tick(.016,1,4+life*.016); Check(maze.Player.Cell==new Point(11,7) && maze.Player.Progress==0,"Respawn failed");
                 Check(maze.LastCue==MazeCue.Caught,"Missing ghost collision cue");
             }
             string dir=Path.Combine(Path.GetTempPath(),"Arcade checks "+Guid.NewGuid().ToString("N"));
@@ -84,7 +101,7 @@ namespace Arcade {
                 }
                 using(var setup=new Setup(new Library())) { setup.PerformLayout(); }
                 Native.Stick();
-                Console.WriteLine("Passed maze connectivity, four exit triggers, repeated respawns, executable and shortcut launches, controller exit timing, rendering, setup construction and input polling.");
+                Console.WriteLine("Passed maze connectivity, four exit triggers, player and pellet respawns, executable and shortcut launches, controller exit timing, rendering, setup construction and input polling.");
             } finally { File.Delete(shortcut); Directory.Delete(dir); }
         }
     }

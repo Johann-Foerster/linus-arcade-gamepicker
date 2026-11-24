@@ -9,7 +9,7 @@ using System.Windows.Forms;
 
 namespace Arcade {
     class GameExit {
-        const double HoldSeconds = 5;
+        const double HoldSeconds = 2;
         const double CloseGraceSeconds = 3;
         double? heldSince;
         double? forceCloseAt;
@@ -118,10 +118,11 @@ namespace Arcade {
                     return;
                 }
                 game.Dispose(); game=null; gameExit=null; maze.Respawn(); TopMost=true; Activate(); Native.SetForegroundWindow(Handle);
+                maze.RestorePellets(now);
                 sounds.Play(MazeCue.Returned,now);
             } else {
                 int input=Native.Stick();
-                int gate=maze.Tick(dt,input==0?keyDirection:input);
+                int gate=maze.Tick(dt,input==0?keyDirection:input,now);
                 if(gate>=0) {
                     maze.Respawn(); keyDirection=0;
                     try {
