@@ -23,6 +23,7 @@ namespace Arcade {
         static readonly Point[] Delta = {Point.Empty,new Point(0,-1),new Point(1,0),new Point(0,1),new Point(-1,0)};
         static readonly Point Home = new Point(11,7);
         const double PelletRespawnSeconds = 10;
+        const double LateTurnTolerance = .30;
         public Runner Player;
         public Runner[] Ghosts;
         public readonly HashSet<Point> Pellets = new HashSet<Point>();
@@ -87,6 +88,12 @@ namespace Arcade {
             if(direction!=0) { queued=direction; moving=true; }
             if(!moving) return -1;
             Point previousCell=Player.Cell;
+            // A perpendicular input just past an opening can still turn at that cell.
+            if(Player.Cell!=Player.Next && Player.Progress<=LateTurnTolerance &&
+               queued%2!=Player.Direction%2 && Can(Player.Cell,queued)) {
+                Player.Next=Player.Cell;
+                Player.Progress=0;
+            }
             Advance(Player,dt*5.25,delegate {
                 if(Can(Player.Cell,queued)) { int d=queued; queued=0; return d; }
                 return Player.Direction;

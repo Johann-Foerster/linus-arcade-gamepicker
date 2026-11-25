@@ -55,6 +55,31 @@ namespace Arcade {
             clearMaze.Tick(0,0,10);
             Check(clearMaze.Pellets.Contains(first),"Pellet did not respawn while the player was idle");
         }
+        static void CheckTurnTolerance() {
+            var junction=new Point(5,13);
+            var north=new Point(5,12);
+            var maze=new Maze();
+            maze.Ghosts=new Runner[0];
+            maze.Player=new Runner(new Point(6,13));
+            maze.Tick(.8/5.25,4,0);
+            maze.Tick(.4/5.25,1,1);
+            Check(maze.Player.Cell==junction && maze.Player.Next==north,"Early turn was not buffered");
+
+            maze.Player=new Runner(new Point(6,13));
+            maze.Tick(1.25/5.25,4,2);
+            maze.Tick(.1/5.25,1,3);
+            Check(maze.Player.Cell==junction && maze.Player.Next==north,"Late turn missed a nearby opening");
+
+            maze.Player=new Runner(new Point(6,13));
+            maze.Tick(1.4/5.25,4,4);
+            maze.Tick(.1/5.25,1,5);
+            Check(maze.Player.Cell==junction && maze.Player.Next==new Point(4,13),"Turn returned to an opening outside the tolerance");
+
+            maze.Player=new Runner(new Point(6,13));
+            maze.Tick(.15/5.25,4,6);
+            maze.Tick(.1/5.25,1,7);
+            Check(maze.Player.Next==junction && maze.Player.Progress>.2,"A wall interrupted forward movement");
+        }
         static void CheckShutdownHotkey() {
             var hotkey = new ShutdownHotkey();
             Check(!hotkey.Update(false, true, 0), "Shutdown triggered on initial press");
@@ -87,6 +112,7 @@ namespace Arcade {
             foreach(var ghost in maze.Ghosts)
                 Check(seen.Contains(ghost.Cell) && ghostSpawns.Add(ghost.Cell),"Invalid or duplicate ghost spawn");
             CheckPelletRespawns();
+            CheckTurnTolerance();
             CheckShutdownHotkey();
             for(int i=0;i<4;i++) {
                 var gate=Maze.Gates[i];
